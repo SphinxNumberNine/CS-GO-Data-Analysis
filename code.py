@@ -202,6 +202,8 @@ if not os.path.exists(tidied_player_data_path):
     # adding necessary fields
     player_data["win"] = player_data["team_rounds"] > player_data["opposing_team_rounds"]
     player_data["kdr"] = player_data["kills"] / player_data["deaths"]
+    player_data["kpr"] = player_data["kills"] / \
+        (player_data["team_rounds"] + player_data["opposing_team_rounds"])
 
     player_data["opposing_team_rank"] = -1  # just to create the column
     for index, row in player_data.iterrows():
