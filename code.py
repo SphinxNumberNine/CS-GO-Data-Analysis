@@ -86,8 +86,6 @@ if not os.path.exists(ranking_pickle_filepath):
 else:
     rankings_df = pd.read_pickle(ranking_pickle_filepath)
 
-print(rankings_df.head())
-
 # ----------------------------------------------------- PLAYER DATA -----------------------------------------------------
 
 players_link = "https://www.hltv.org/stats/players?startDate=all&matchType=Lan&rankingFilter=Top30"
@@ -155,4 +153,23 @@ else:
     player_data = pd.read_pickle(match_pickle_filepath)
 
 
+# ----------------------------------------------------- Tidying Data -----------------------------------------------------
+
+# correct data formats
+rankings_df["date"] = pd.to_datetime(rankings_df["date"], format="%Y-%m-%d")
+player_data["date"] = pd.to_datetime(player_data["date"], format="%d/%m/%y")
+player_data["team_rounds"] = pd.to_numeric(player_data["team_rounds"])
+player_data["opposing_team_rounds"] = pd.to_numeric(
+    player_data["opposing_team_rounds"])
+player_data["kills"] = pd.to_numeric(player_data["kills"])
+player_data["deaths"] = pd.to_numeric(player_data["deaths"])
+player_data["differential"] = pd.to_numeric(player_data["differential"])
+player_data["rating"] = player_data["rating"].replace("*", "")
+player_data["rating"] = player_data["rating"].str.strip()
+
+# adding necessary fields
+player_data["win"] = player_data["team_rounds"] > player_data["opposing_team_rounds"]
+
+
+print(rankings_df.head())
 print(player_data.head())
