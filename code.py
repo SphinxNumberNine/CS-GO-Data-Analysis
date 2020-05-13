@@ -170,6 +170,12 @@ player_data["rating"] = player_data["rating"].str.strip()
 # adding necessary fields
 player_data["win"] = player_data["team_rounds"] > player_data["opposing_team_rounds"]
 
+# filtering matches to fit desired timeframe
+start = pd.to_datetime('2015-10-26')
+end = pd.to_datetime('2019-12-30')
+player_data = player_data.query(
+    'date > @start and date < @end').reset_index(drop=True)
+
 
 print(rankings_df.head())
 print(player_data.head())
