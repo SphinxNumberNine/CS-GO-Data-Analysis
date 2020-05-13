@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import date, timedelta
+import datetime
 from bs4 import BeautifulSoup
 import requests
 import re
@@ -53,7 +54,10 @@ def all_ranking_days():
 def scrape_rankings():
     days = all_ranking_days()
     rows = []
-    for day in days:
+    for i in range(0, len(days)):
+        day = days[i]
+        next_day = days[i + 1] - \
+            datetime.timedelta(days=1) if i < len(days) - 1 else date.today()
         url = "https://www.hltv.org/ranking/teams/" + \
             str(day.year) + "/" + \
             months[day.month] + "/" + str(day.day)
@@ -70,7 +74,9 @@ def scrape_rankings():
             name = team.find("span", class_="name").text
             players = team.findAll("div", class_="nick")
             playernames = [player.text for player in players]
-            res.append([day, name, rank, playernames])
+            date_range = pd.date_range(start=day, end=next_day)
+            for d in date_range:
+                res.append([d, name, rank, playernames])
 
         print(res)
         rows += res
@@ -155,27 +161,69 @@ else:
 
 # ----------------------------------------------------- Tidying Data -----------------------------------------------------
 
-# correct data formats
-rankings_df["date"] = pd.to_datetime(rankings_df["date"], format="%Y-%m-%d")
-player_data["date"] = pd.to_datetime(player_data["date"], format="%d/%m/%y")
-player_data["team_rounds"] = pd.to_numeric(player_data["team_rounds"])
-player_data["opposing_team_rounds"] = pd.to_numeric(
-    player_data["opposing_team_rounds"])
-player_data["kills"] = pd.to_numeric(player_data["kills"])
-player_data["deaths"] = pd.to_numeric(player_data["deaths"])
-player_data["differential"] = pd.to_numeric(player_data["differential"])
-player_data["rating"] = player_data["rating"].replace("*", "")
-player_data["rating"] = player_data["rating"].str.strip()
+tidied_rankings_path = "./data/tidied/rankings.pickle"
+tidied_player_data_path = "./data/tidied/matches.pickle"
 
-# adding necessary fields
-player_data["win"] = player_data["team_rounds"] > player_data["opposing_team_rounds"]
+if not os.path.exists(tidied_rankings_path):
+    rankings_df["date"] = pd.to_datetime(
+        rankings_df["date"], format="%Y-%m-%d")
+    rankings_df.to_pickle(tidied_rankings_path)
+else:
+    rankings_df = pd.read_pickle(tidied_rankings_path)
 
-# filtering matches to fit desired timeframe
-start = pd.to_datetime('2015-10-26')
-end = pd.to_datetime('2019-12-30')
-player_data = player_data.query(
-    'date > @start and date < @end').reset_index(drop=True)
+
+def get_opponent_rank(opponent, date):
+    subset = rankings_df[rankings_df["date"] == date]
+    if len(subset) == 0:
+        return -1
+    rows = subset[subset["name"] == opponent]
+    if(len(rows) == 0):
+        return -1
+    row = rows.iloc[[0]]
+    if len(row) == 0:
+        return -1
+    return row["rank"].iloc[0]
+
+
+if not os.path.exists(tidied_player_data_path):
+    # correct data formats
+
+    player_data["date"] = pd.to_datetime(
+        player_data["date"], format="%d/%m/%y")
+    player_data["team_rounds"] = pd.to_numeric(player_data["team_rounds"])
+    player_data["opposing_team_rounds"] = pd.to_numeric(
+        player_data["opposing_team_rounds"])
+    player_data["kills"] = pd.to_numeric(player_data["kills"])
+    player_data["deaths"] = pd.to_numeric(player_data["deaths"])
+    player_data["differential"] = pd.to_numeric(player_data["differential"])
+    player_data["rating"] = player_data["rating"].replace("*", "")
+    player_data["rating"] = player_data["rating"].str.strip()
+
+    # adding necessary fields
+    player_data["win"] = player_data["team_rounds"] > player_data["opposing_team_rounds"]
+    player_data["kdr"] = player_data["kills"] / player_data["deaths"]
+
+    player_data["opposing_team_rank"] = -1  # just to create the column
+    for index, row in player_data.iterrows():
+        print("Processing " + row["player"] + " vs. " +
+              row["opposing_team"] + " on " + str(row["date"]))
+
+        player_data.at[index, "opposing_team_rank"] = get_opponent_rank(
+            row["opposing_team"], row["date"])
+
+    # filtering matches to fit desired timeframe
+    start = pd.to_datetime('2015-10-26')
+    end = pd.to_datetime('2019-12-30')
+    player_data = player_data.query(
+        'date > @start and date < @end').reset_index(drop=True)
+
+    player_data.to_pickle(tidied_player_data_path)
+
+else:
+    player_data = pd.read_pickle(tidied_player_data_path)
 
 
 print(rankings_df.head())
+print(len(rankings_df))
 print(player_data.head())
+print(len(player_data))
