@@ -206,12 +206,26 @@ if not os.path.exists(tidied_player_data_path):
         (player_data["team_rounds"] + player_data["opposing_team_rounds"])
 
     player_data["opposing_team_rank"] = -1  # just to create the column
+    player_data["team_rank"] = -1
     for index, row in player_data.iterrows():
         print("Processing " + row["player"] + " vs. " +
               row["opposing_team"] + " on " + str(row["date"]))
 
         player_data.at[index, "opposing_team_rank"] = get_opponent_rank(
             row["opposing_team"], row["date"])
+
+        player_data.at[index, "team_rank"] = get_opponent_rank(
+            row["team"], row["date"])
+
+    player_data["opposing_team_rank"] = pd.to_numeric(
+        player_data["opposing_team_rank"])
+    player_data["team_rank"] = pd.to_numeric(player_data["team_rank"])
+
+    # player_data["rank_differential"] = player_data["team_rank"] - \
+    # player_data["opposing_team_rank"]
+
+    player_data["rank_differential"] = player_data.apply(lambda row: float(
+        "inf") if row["team_rank"] == -1 or row["opposing_team_rank"] == -1 else row["team_rank"] - row["opposing_team_rank"], axis=1)
 
     # filtering matches to fit desired timeframe
     start = pd.to_datetime('2015-10-26')
